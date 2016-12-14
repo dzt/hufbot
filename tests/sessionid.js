@@ -6,6 +6,9 @@ const request = require('request').defaults({
 const cheerio = require('cheerio');
 const configuration = require('./config.json');
 
+console.log('hufbot started');
+// http://store.hufworldwide.com/collections/huf-x-ftp
+
 getSessionID('http://store.hufworldwide.com/products/cp64002-bkbne', '18923332805', configuration);
 
 function getSessionID(link, id, config) {
@@ -177,7 +180,7 @@ function input(id, checkoutID, auth_token, config, storeID) {
             var $ = cheerio.load(body);
         }
 
-        return ship(id, checkoutID, storeID, auth_token, config);
+        return ship(id, checkoutID, storeID, $('input[name=authenticity_token]').attr('value'), config);
 
     });
 
@@ -222,7 +225,7 @@ function ship(id, checkoutID, storeID, auth_token, config) {
             'checkout[shipping_address][address2]': aptNumber,
             'checkout[shipping_address][city]': config.billingInfo.city,
             'checkout[shipping_address][country]': config.billingInfo.country,
-            'checkout[shipping_address][province]': `${config.billingInfo.stateFull}`,
+            'checkout[shipping_address][province]': config.billingInfo.stateFull,
             'checkout[shipping_address][zip]': config.billingInfo.zipCode,
             'checkout[shipping_address][phone]': config.billingInfo.phoneNumber,
             'checkout[remember_me]': '0',
@@ -240,19 +243,21 @@ function ship(id, checkoutID, storeID, auth_token, config) {
             // if cheerio cant find the first shipping choice retry again
             console.log('Looking for shipping options, please wait...');
             var option_1_radio = $('.input-radio').attr('value');
-            if ($('.input-radio').eq(0).attr('value') === undefined) {
+            if ($('.input-radio').eq(1).attr('value') === undefined) {
                 return ship(id, checkoutID, storeID, auth_token, config);
             } else {
+            	// shipping options are static after numerous requests
                 var option_1_radio_dec_val = $('.input-radio').eq(0).attr('value');
                 var auth = $('input[name=authenticity_token]').attr('value');
                 console.log('Cheapest Shipping Option Value: ' + option_1_radio_dec_val);
-                return submitShippingChoice(storeID, checkoutID, auth, option_1_radio_dec_val);
+                return submitShippingChoice(storeID, checkoutID, $('input[name=authenticity_token]').attr('value'), option_1_radio_dec_val);
             }
         }
     });
 }
 
 function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
+	// get to card page
 
     request({
         url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
@@ -286,7 +291,8 @@ function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
             var $ = cheerio.load(body);
         }
 
-        console.log(body);
+        //console.log(body);
 
     });
+
 }

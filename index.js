@@ -36,7 +36,7 @@ api.seekForItem = function(link, productKeywords, callback) {
             var product = {
             	name: $('.title').eq(i).text(),
             	status: status,
-            	link: 'http://store.hufworldwide.com' + $('.title').parent().attr('href')
+            	link: 'http://store.hufworldwide.com' + $('.title').eq(i).parent().attr('href')
             }
             response.productDetails.push(product);
 		});

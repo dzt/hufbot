@@ -1,6 +1,6 @@
 {
-	"keywords": 'Soto',
-	"page": 'http://store.hufworldwide.com/collections/huf-x-ftp',
+	"keywords": "Soto",
+	"page": "http://store.hufworldwide.com/collections/huf-x-ftp",
 	"size": "13",
 	"color": "Black",
 	"autoRetryOnCrash": true,
@@ -19,7 +19,8 @@
 		"city": "Atlanta",
 		"country": "United States",
 		"state": "GA",
+		"stateFull": "Georgia",
 		"zipCode": "30303",
-		"phoneNumber": "+1 (404)-489-2804"
+		"phoneNumber": "4044892804"
 	}
 }

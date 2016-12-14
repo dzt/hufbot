@@ -1,38 +1,383 @@
 var huf = require('./index');
+var j = require('request').jar();
+const _ = require('underscore');
+const request = require('request').defaults({
+    timeout: 30000,
+    jar: j
+});
+const cheerio = require('cheerio');
+const configuration = require('./config.json');
 
-var page = 'http://store.hufworldwide.com/collections/huf-x-ftp';
-var keywordsForProduct = 'SOTO'
-var size = '13';
-var color = 'Black';
-var autoRetry = true;
+seek(configuration);
 
-var ccAndBillingInfo = {
-
-};
-
-seek(page, keywordsForProduct, autoRetry, size, color, ccAndBillingInfo);
-
-function seek(link, keywords, size, style, retry, cc) {
+function seek(config) {
 	console.log('Seeking for item...');
-	huf.seekForItem(link, keywords, (response, err) => {
+	huf.seekForItem(config.page, config.keywords, (response, err) => {
 
 		// Handle Site Crashes
-		if (err) {
-			if (retry == true) {
-				return seek(link, keywords, retry);
+		if (err || response == null) {
+			if (config.autoRetryOnCrash == true) {
+				return seek(config);
 			} else {
 				return console.log(err);
 			}
 		}
-
-		// When Item is found add to cart
-		addToCart(link, size, style, cc);
+		return addToCart(config, response);
 
 	});
 }
 
-function addToCart(link, size, style, cc) {
+function addToCart(config, response) {
 
-	// HTTP GET - http://store.hufworldwide.com/cart.js
+	console.log(`Found your item "${response.name}"`);
+
+	var link, id;
+    request({
+        url: response.link,
+        method: 'get'
+    }, function(err, res, body) {
+
+        if (err) {
+            return console.log('Error has occured while getting product information.');
+        } else {
+        	var $ = cheerio.load(body);
+        }
+
+        var itemSelectSize = $(`option:contains("${config.size}")`).attr('value');
+        if (itemSelectSize == undefined) {
+        	return console.log(`Could not find item available in size ${config.size}`);
+        } else {
+        	console.log(`Found item available in size ${config.size}`);
+        }
+
+        // if there is only one style open then cop that only one just incase styling was inputted wrong
+        var variants = [];
+        $('#product-select option').each(function(i, element) {
+        	var sizeAndPrice = $(this).text().split(" /")[1];
+        	var data = {
+        		id: $(this).attr('value'),
+        		style: $(this).text().split(" /")[0],
+        		size: sizeAndPrice.split(" ")[1]
+        	}
+        	variants.push(data);
+        });
+
+        console.log(variants);
+        var firstItemStyle = variants[0].style;
+
+		function isSameStyle(el, index, arr) {
+		    if (index === 0){
+		        return true;
+		    }
+		    else {
+		        return (el.style === arr[index - 1].style);
+		    }
+		}
+
+        var isEveryStyleTheSame = variants.every(isSameStyle);
+
+        if (isEveryStyleTheSame) {
+        	console.log(`Every item variant is the same, your item will be checked out in ${variants[0].style}`);
+        	var itemToBuy = _.where(variants, {style: variants[0].style, size: config.size});
+        	console.log(`Checkout out in ${variants[0].style} in size ${config.size} - ${itemToBuy[0].id}`);
+        	return getSessionID(response.link, itemToBuy[0].id, config);
+        } else {
+        	var itemToBuy = _.where(variants, {size: config.size});
+        	if (itemToBuy.indexOf(config.color) > -1) {
+                return getSessionID(response.link, itemToBuy[0].id, config);
+            } else {
+            	return console.log('Error occured while trying to find your item using the keywords provided.')
+            }
+        }
+
+    });
+
+}
+
+function getSessionID(link, id, config) {
+	console.log('hufbot started');
+    console.log('Collecting Session ID...');
+    request({
+        url: 'http://store.hufworldwide.com/cart.js',
+        method: 'get',
+        headers: {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
+            'Referer': link,
+            'Accept-Encoding': 'gzip, deflate, sdch',
+            'Accept-Language': 'en-US,en;q=0.8'
+        }
+    }, function(err, res, body) {
+
+        if (err) {
+            return console.log('Error has occured while trying to pickup session id');
+        }
+
+        return atc(link, id, config);
+
+    });
+}
+
+function atc(link, id, config) {
+
+    console.log('Adding to Cart...');
+    console.log(id)
+
+    request({
+        url: 'http://store.hufworldwide.com/cart/add',
+        followAllRedirects: true,
+        method: 'post',
+        headers: {
+            'Origin': 'http://store.hufworldwide.com',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Referer': link,
+            'Accept-Language': 'en-US,en;q=0.8'
+        },
+        formData: {
+            'add': 'ADDING.....',
+            'id': id
+        }
+    }, function(err, res, body) {
+
+        if (err || body === undefined) {
+            return console.log('Error occured while trying to add item to your cart.');
+        } else {
+            var $ = cheerio.load(body);
+        }
+
+        console.log('"' + $('.name').text() + '"' + ' added to cart');
+        console.log('Price: ' + '$' + $('.unit_price').text());
+
+        return getCheckoutPage(id, config);
+
+
+    });
+
+}
+
+function getCheckoutPage(id, config) {
+
+    var idVal = `updates[${id}]`;
+
+    request({
+        url: 'http://store.hufworldwide.com/cart',
+        followAllRedirects: true, // redirects to https checkout
+        method: 'post',
+        headers: {
+            'Origin': 'http://store.hufworldwide.com',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Referer': 'http://store.hufworldwide.com/cart',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.8',
+            'Cookie': 'cookie'
+        },
+        formData: {
+            'attributes[nostoref]': '',
+            'checkout': 'CHECKOUT',
+            'note': '',
+            idVal: '1'
+        }
+    }, function(err, res, body) {
+
+        if (err || body === undefined) {
+            return console.log('Error occured while trying to add item to your cart.');
+        } else {
+            var $ = cheerio.load(body);
+        }
+
+        var cookies = j.getCookies('http://store.hufworldwide.com');
+        //console.log(cookies);
+        var storeID = $('.edit_checkout').attr('action').split('/')[1];
+        console.log('Store ID: ' + storeID);
+        var checkoutID = $('.edit_checkout').attr('action').split('checkouts/')[1];
+        console.log('Checkout ID: ' + checkoutID);
+        var auth_token = $('input[name=authenticity_token]').attr('value');
+        console.log('Auth Token Value: ' + auth_token);
+        return input(id, checkoutID, auth_token, config, storeID);
+
+    });
+
+}
+
+function input(id, checkoutID, auth_token, config, storeID) {
+
+    if (config.billingInfo.company == null) {
+        var company = '';
+    } else {
+        var company = config.billingInfo.company;
+    }
+
+    if (config.billingInfo.aptNumber == null) {
+        var aptNumber = '';
+    } else {
+        var aptNumber = config.billingInfo.aptNumber;
+    }
+
+    console.log(id + ' ' + checkoutID);
+
+    request({
+        url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
+        followAllRedirects: true, // redirects to https checkout
+        method: 'get',
+        headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.8',
+            'Host': 'checkout.shopify.com',
+            'Referer': `https://checkout.shopify.com/${id}/checkouts/${checkoutID}?step=contact_information`,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+        },
+        qs: {
+            'utf8': '✓',
+            '_method': 'patch',
+            'authenticity_token': auth_token,
+            'previous_step': 'contact_information',
+            'checkout[email]': config.billingInfo.email,
+            'checkout[shipping_address][first_name]': config.billingInfo.firstName,
+            'checkout[shipping_address][last_name]': config.billingInfo.lastName,
+            'checkout[shipping_address][company]': company,
+            'checkout[shipping_address][address1]': config.billingInfo.address,
+            'checkout[shipping_address][address2]': aptNumber,
+            'checkout[shipping_address][city]': config.billingInfo.city,
+            'checkout[shipping_address][country]': config.billingInfo.country,
+            'checkout[shipping_address][province]': config.billingInfo.state,
+            'checkout[shipping_address][province]': '',
+            'checkout[shipping_address][province]': config.billingInfo.stateFull,
+            'checkout[shipping_address][zip]': config.billingInfo.zipCode,
+            'checkout[shipping_address][phone]': config.billingInfo.phoneNumber,
+            'checkout[remember_me]': '',
+            'checkout[remember_me]': '0',
+            'checkout[client_details][browser_width]': '979',
+            'checkout[client_details][browser_height]': '631',
+            'checkout[client_details][javascript_enabled]': '1',
+            'step': 'contact_information'
+        }
+    }, function(err, res, body) {
+
+        if (err || body === undefined) {
+            return console.log('Error occured while trying to add item to your cart.');
+        } else {
+            var $ = cheerio.load(body);
+        }
+
+        return ship(id, checkoutID, storeID, $('input[name=authenticity_token]').attr('value'), config);
+
+    });
+
+}
+
+function ship(id, checkoutID, storeID, auth_token, config) {
+
+    if (config.billingInfo.company == null) {
+        var company = '';
+    } else {
+        var company = config.billingInfo.company;
+    }
+
+    if (config.billingInfo.aptNumber == null) {
+        var aptNumber = '';
+    } else {
+        var aptNumber = config.billingInfo.aptNumber;
+    }
+
+    request({
+        url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
+        followAllRedirects: true, // redirects to https checkout
+        method: 'post',
+        headers: {
+            'Origin': 'https://checkout.shopify.com',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.8',
+            'Referer': `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+        },
+        formData: {
+            'utf8': '✓',
+            '_method': 'patch',
+            'authenticity_token': auth_token,
+            'button': '',
+            'checkout[email]': config.billingInfo.email,
+            'checkout[shipping_address][first_name]': config.billingInfo.firstName,
+            'checkout[shipping_address][last_name]': config.billingInfo.lastName,
+            'checkout[shipping_address][company]': company,
+            'checkout[shipping_address][address1]': config.billingInfo.address,
+            'checkout[shipping_address][address2]': aptNumber,
+            'checkout[shipping_address][city]': config.billingInfo.city,
+            'checkout[shipping_address][country]': config.billingInfo.country,
+            'checkout[shipping_address][province]': config.billingInfo.stateFull,
+            'checkout[shipping_address][zip]': config.billingInfo.zipCode,
+            'checkout[shipping_address][phone]': config.billingInfo.phoneNumber,
+            'checkout[remember_me]': '0',
+            'checkout[client_details][browser_width]': '979',
+            'checkout[client_details][browser_height]': '631',
+            'checkout[client_details][javascript_enabled]': '1',
+            'previous_step': 'contact_information',
+            'step': 'shipping_method'
+        }
+    }, function(err, res, body) {
+        if (err || body === undefined) {
+            return console.log('Error occured while trying to setup shipping options.');
+        } else {
+            var $ = cheerio.load(body);
+            // if cheerio cant find the first shipping choice retry again
+            console.log('Looking for shipping options, please wait...');
+            var option_1_radio = $('.input-radio').attr('value');
+            if ($('.input-radio').eq(1).attr('value') === undefined) {
+                return ship(id, checkoutID, storeID, auth_token, config);
+            } else {
+            	// shipping options are static after numerous requests
+                var option_1_radio_dec_val = $('.input-radio').eq(0).attr('value');
+                var auth = $('input[name=authenticity_token]').attr('value');
+                console.log('Cheapest Shipping Option Value: ' + option_1_radio_dec_val);
+                return submitShippingChoice(storeID, checkoutID, $('input[name=authenticity_token]').attr('value'), option_1_radio_dec_val);
+            }
+        }
+    });
+}
+
+function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
+	// get to card page
+
+    request({
+        url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
+        followAllRedirects: true,
+        method: 'post',
+        headers: {
+            'Origin': 'https://checkout.shopify.com',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.8',
+            'Referer': `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}?previous_step=contact_information&step=shipping_method`,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+        },
+        formData: {
+            'utf8': '✓',
+            '_method': 'patch',
+            'authenticity_token': auth_token,
+            'button': '',
+            'checkout[client_details][browser_width]': '979',
+            'checkout[client_details][browser_height]': '631',
+            'checkout[client_details][javascript_enabled]': '1',
+            'previous_step': 'shipping_method',
+            'step': 'payment_method',
+            'checkout[shipping_rate][id]': shippingRateID
+        }
+    }, function(err, res, body) {
+
+        if (err || body === undefined) {
+            return console.log('Error occured while trying to add item to your cart.');
+        } else {
+            var $ = cheerio.load(body);
+        }
+
+        //console.log(body);
+
+    });
 
 }
