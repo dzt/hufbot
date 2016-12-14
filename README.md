@@ -1,6 +1,8 @@
 # hufbot
 ATC Bot for hufworldwide.com (Shopify based website)
 
+![term](media/ht.png)
+
 ### Installation
 
 hufbot requires [Node.js](http://nodejs.org/).
