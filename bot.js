@@ -11,7 +11,7 @@ const configuration = require('./config.json');
 seek(configuration);
 
 function seek(config) {
-	console.log('Seeking for item...');
+  huf.log('info', 'Seeking for item...')
 	huf.seekForItem(config.page, config.keywords, (response, err) => {
 
 		// Handle Site Crashes
@@ -19,7 +19,7 @@ function seek(config) {
 			if (config.autoRetryOnCrash == true) {
 				return seek(config);
 			} else {
-				return console.log(err);
+				return huf.log('error', err);
 			}
 		}
 		return addToCart(config, response);
@@ -29,7 +29,7 @@ function seek(config) {
 
 function addToCart(config, response) {
 
-	console.log(`Found your item "${response.name}"`);
+  huf.log('success', `Found your item "${response.name}"`)
 
 	var link, id;
     request({
@@ -38,16 +38,16 @@ function addToCart(config, response) {
     }, function(err, res, body) {
 
         if (err) {
-            return console.log('Error has occured while getting product information.');
+            return huf.log('error', 'Error has occured while getting product information.')
         } else {
         	var $ = cheerio.load(body);
         }
 
         var itemSelectSize = $(`option:contains("${config.size}")`).attr('value');
         if (itemSelectSize == undefined) {
-        	return console.log(`Could not find item available in size ${config.size}`);
+          return huf.log('error', `Could not find item available in size ${config.size}`)
         } else {
-        	console.log(`Found item available in size ${config.size}`);
+          huf.log('success', `Found item available in size ${config.size}`)
         }
 
         // if there is only one style open then cop that only one just incase styling was inputted wrong
@@ -62,7 +62,7 @@ function addToCart(config, response) {
         	variants.push(data);
         });
 
-        console.log(variants);
+        //huf.log('info', variants)
         var firstItemStyle = variants[0].style;
 
 		function isSameStyle(el, index, arr) {
@@ -77,16 +77,16 @@ function addToCart(config, response) {
         var isEveryStyleTheSame = variants.every(isSameStyle);
 
         if (isEveryStyleTheSame) {
-        	console.log(`Every item variant is the same, your item will be checked out in ${variants[0].style}`);
+          huf.log('warning', `Every item variant is the same, your item will be checked out in ${variants[0].style}`)
         	var itemToBuy = _.where(variants, {style: variants[0].style, size: config.size});
-        	console.log(`Checkout out in ${variants[0].style} in size ${config.size} - ${itemToBuy[0].id}`);
+          huf.log('info', `Checkout out in ${variants[0].style} in size ${config.size} - ${itemToBuy[0].id}`)
         	return getSessionID(response.link, itemToBuy[0].id, config);
         } else {
         	var itemToBuy = _.where(variants, {size: config.size});
         	if (itemToBuy.indexOf(config.color) > -1) {
                 return getSessionID(response.link, itemToBuy[0].id, config);
             } else {
-            	return console.log('Error occured while trying to find your item using the keywords provided.')
+              return huf.log('error', 'Error occured while trying to find your item using the keywords provided.')
             }
         }
 
@@ -95,8 +95,7 @@ function addToCart(config, response) {
 }
 
 function getSessionID(link, id, config) {
-	console.log('hufbot started');
-    console.log('Collecting Session ID...');
+    huf.log('info', 'Collecting Session ID...')
     request({
         url: 'http://store.hufworldwide.com/cart.js',
         method: 'get',
@@ -111,7 +110,7 @@ function getSessionID(link, id, config) {
     }, function(err, res, body) {
 
         if (err) {
-            return console.log('Error has occured while trying to pickup session id');
+            return huf.log('error', 'Error has occured while trying to pickup session id')
         }
 
         return atc(link, id, config);
@@ -121,8 +120,8 @@ function getSessionID(link, id, config) {
 
 function atc(link, id, config) {
 
-    console.log('Adding to Cart...');
-    console.log(id)
+    huf.log('info', 'Adding to Cart...')
+    huf.log('info', id)
 
     request({
         url: 'http://store.hufworldwide.com/cart/add',
@@ -144,16 +143,15 @@ function atc(link, id, config) {
     }, function(err, res, body) {
 
         if (err || body === undefined) {
-            return console.log('Error occured while trying to add item to your cart.');
+            return huf.log('error', 'Error occured while trying to add item to your cart.')
         } else {
             var $ = cheerio.load(body);
         }
 
-        console.log('"' + $('.name').text() + '"' + ' added to cart');
-        console.log('Price: ' + '$' + $('.unit_price').text());
+        huf.log('success', '"' + $('.name').text() + '"' + ' added to cart')
+        huf.log('success', 'Price: ' + '$' + $('.unit_price').text())
 
         return getCheckoutPage(id, config);
-
 
     });
 
@@ -186,19 +184,18 @@ function getCheckoutPage(id, config) {
     }, function(err, res, body) {
 
         if (err || body === undefined) {
-            return console.log('Error occured while trying to add item to your cart.');
+            return huf.log('error', 'Error occured while trying to add item to your cart.')
         } else {
             var $ = cheerio.load(body);
         }
 
         var cookies = j.getCookies('http://store.hufworldwide.com');
-        //console.log(cookies);
         var storeID = $('.edit_checkout').attr('action').split('/')[1];
-        console.log('Store ID: ' + storeID);
+        huf.log('info', storeID)
         var checkoutID = $('.edit_checkout').attr('action').split('checkouts/')[1];
-        console.log('Checkout ID: ' + checkoutID);
+        huf.log('info', 'Checkout ID: ' + checkoutID)
         var auth_token = $('input[name=authenticity_token]').attr('value');
-        console.log('Auth Token Value: ' + auth_token);
+        huf.log('info', 'Auth Token Value: ' + auth_token)
         return input(id, checkoutID, auth_token, config, storeID);
 
     });
@@ -219,7 +216,7 @@ function input(id, checkoutID, auth_token, config, storeID) {
         var aptNumber = config.billingInfo.aptNumber;
     }
 
-    console.log(id + ' ' + checkoutID);
+    huf.log('info', id + ' ' + checkoutID)
 
     request({
         url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
@@ -260,7 +257,7 @@ function input(id, checkoutID, auth_token, config, storeID) {
     }, function(err, res, body) {
 
         if (err || body === undefined) {
-            return console.log('Error occured while trying to add item to your cart.');
+            return huf.log('error', 'Error occured while trying to add item to your cart.')
         } else {
             var $ = cheerio.load(body);
         }
@@ -322,11 +319,11 @@ function ship(id, checkoutID, storeID, auth_token, config) {
         }
     }, function(err, res, body) {
         if (err || body === undefined) {
-            return console.log('Error occured while trying to setup shipping options.');
+            return huf.log('error', 'Error occured while trying to setup shipping options.')
         } else {
             var $ = cheerio.load(body);
             // if cheerio cant find the first shipping choice retry again
-            console.log('Looking for shipping options, please wait...');
+            huf.log('info', 'Looking for shipping options, please wait...')
             var option_1_radio = $('.input-radio').attr('value');
             if ($('.input-radio').eq(1).attr('value') === undefined) {
                 return ship(id, checkoutID, storeID, auth_token, config);
@@ -334,7 +331,7 @@ function ship(id, checkoutID, storeID, auth_token, config) {
             	// shipping options are static after numerous requests
                 var option_1_radio_dec_val = $('.input-radio').eq(0).attr('value');
                 var auth = $('input[name=authenticity_token]').attr('value');
-                console.log('Cheapest Shipping Option Value: ' + option_1_radio_dec_val);
+                huf.log('success', 'Cheapest Shipping Option Value: ' + option_1_radio_dec_val)
                 return submitShippingChoice(storeID, checkoutID, $('input[name=authenticity_token]').attr('value'), option_1_radio_dec_val);
             }
         }
@@ -371,7 +368,7 @@ function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
     }, function(err, res, body) {
 
         if (err || body === undefined) {
-            return console.log('Error occured while trying to add item to your cart.');
+            return huf.log('error', 'Error occured while trying to add item to your cart.')
         } else {
             var $ = cheerio.load(body);
         }
