@@ -6,7 +6,13 @@ const request = require('request').defaults({
     jar: j
 });
 const cheerio = require('cheerio');
-const configuration = require('./config.json');
+
+try {
+  const configuration = require('./config.json');
+}
+catch (e) {
+ return huf.log('error', 'Missing, config.json file please create your config file before using hufbot.')
+}
 
 seek(configuration);
 
