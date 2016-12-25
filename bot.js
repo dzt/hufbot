@@ -7,8 +7,10 @@ const request = require('request').defaults({
 });
 const cheerio = require('cheerio');
 
+var configuration
+
 try {
-  const configuration = require('./config.json');
+  configuration = require('./config.json');
 }
 catch (e) {
  return huf.log('error', 'Missing, config.json file please create your config file before using hufbot.')
