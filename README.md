@@ -1,7 +1,7 @@
 # hufbot
 ATC Bot for hufworldwide.com (Shopify based website)
 
-![term](media/ht.png)
+![term](media/sc.png)
 
 ### Installation
 
