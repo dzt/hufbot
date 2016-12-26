@@ -67,7 +67,7 @@ api.addToCart = function(link, size, style, cc, callback) {
 }
 
 // warning, error, info, success
-api.log = function(type, text) {
+api.log = function(task, type, text) {
 
     var date = new Date()
     var formatted = date.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1")
@@ -75,20 +75,20 @@ api.log = function(type, text) {
 
     switch (type) {
         case "warning":
-            console.log(`[Task #][${formatted}] ${text}`.yellow)
+            console.log(`[Task #${task}][${formatted}] ${text}`.yellow)
             break;
         case "error":
-            console.log(`[Task #] [${formatted}] ${text}`.red)
+            console.log(`[Task #${task}][${formatted}] ${text}`.red)
             break;
         case "info":
-            console.log(`[Task #] [${formatted}] ${text}`.cyan)
+            console.log(`[Task #${task}][${formatted}] ${text}`.cyan)
             break;
         case "success":
-            console.log(`[Task #] [${formatted}] ${text}`.green)
+            console.log(`[Task #${task}][${formatted}] ${text}`.green)
             break;
 
         default:
-            console.log(`[Task #] [${formatted}] ${text}`.white)
+            console.log(`[Task #${task}][${formatted}] ${text}`.white)
     }
 }
 
