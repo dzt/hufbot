@@ -75,20 +75,20 @@ api.log = function(type, text) {
 
     switch (type) {
         case "warning":
-            console.log(`[${formatted}] ${text}`.yellow)
+            console.log(`[Task #][${formatted}] ${text}`.yellow)
             break;
         case "error":
-            console.log(`[${formatted}] ${text}`.red)
+            console.log(`[Task #] [${formatted}] ${text}`.red)
             break;
         case "info":
-            console.log(`[${formatted}] ${text}`.cyan)
+            console.log(`[Task #] [${formatted}] ${text}`.cyan)
             break;
         case "success":
-            console.log(`[${formatted}] ${text}`.green)
+            console.log(`[Task #] [${formatted}] ${text}`.green)
             break;
 
         default:
-            console.log(`[${formatted}] ${text}`.white)
+            console.log(`[Task #] [${formatted}] ${text}`.white)
     }
 }
 
