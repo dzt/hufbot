@@ -6,40 +6,61 @@ const request = require('request').defaults({
     jar: j
 });
 const cheerio = require('cheerio');
-
+const async = require('async');
 var configuration
 
 try {
-  configuration = require('./config.json');
+    configuration = require('./config.json');
+} catch (e) {
+    return huf.log('error', 'Missing, config.json file please create your config file before using hufbot.')
 }
-catch (e) {
- return huf.log('error', 'Missing, config.json file please create your config file before using hufbot.')
+
+var stack = []
+
+var task1 = function(callback) {
+    //callback(`Task 1 Started`, null)
+    huf.log('info', `Task 1 Started`);
+    huf.log('info', 'Seeking for item...')
+    huf.seekForItem(configuration[0].page, configuration[0].keywords, (response, err) => {
+        // Handle Site Crashes
+        if (err || response == null) {
+            if (configuration[0].autoRetryOnCrash == true) {
+                return task1();
+            } else {
+                return huf.log('error', err);
+            }
+        }
+        return addToCart(configuration[0], response);
+    });
 }
 
-seek(configuration);
-
-function seek(config) {
-  huf.log('info', 'Seeking for item...')
-	huf.seekForItem(config.page, config.keywords, (response, err) => {
-
-		// Handle Site Crashes
-		if (err || response == null) {
-			if (config.autoRetryOnCrash == true) {
-				return seek(config);
-			} else {
-				return huf.log('error', err);
-			}
-		}
-		return addToCart(config, response);
-
-	});
+var task2 = function(callback) {
+    //callback(`Task 2 Started`, null)
+    huf.log('info', `Task 2 Started`);
+    huf.log('info', 'Seeking for item...')
+    huf.seekForItem(configuration[1].page, configuration[1].keywords, (response, err) => {
+        // Handle Site Crashes
+        if (err || response == null) {
+            if (configuration[1].autoRetryOnCrash == true) {
+                return task2();
+            } else {
+                return huf.log('error', err);
+            }
+        }
+        return addToCart(configuration[1], response);
+    });
 }
+
+stack.push(task1)
+stack.push(task2)
+
+async.parallel(stack, function(res, err) {});
 
 function addToCart(config, response) {
 
-  huf.log('success', `Found your item "${response.name}"`)
+    huf.log('success', `Found your item "${response.name}"`)
 
-	var link, id;
+    var link, id;
     request({
         url: response.link,
         method: 'get'
@@ -48,53 +69,57 @@ function addToCart(config, response) {
         if (err) {
             return huf.log('error', 'Error has occured while getting product information.')
         } else {
-        	var $ = cheerio.load(body);
+            var $ = cheerio.load(body);
         }
 
         var itemSelectSize = $(`option:contains("${config.size}")`).attr('value');
         if (itemSelectSize == undefined) {
-          return huf.log('error', `Could not find item available in size ${config.size}`)
+            return huf.log('error', `Could not find item available in size ${config.size}`)
         } else {
-          huf.log('success', `Found item available in size ${config.size}`)
+            huf.log('success', `Found item available in size ${config.size}`)
         }
 
         // if there is only one style open then cop that only one just incase styling was inputted wrong
         var variants = [];
         $('#product-select option').each(function(i, element) {
-        	var sizeAndPrice = $(this).text().split(" /")[1];
-        	var data = {
-        		id: $(this).attr('value'),
-        		style: $(this).text().split(" /")[0],
-        		size: sizeAndPrice.split(" ")[1]
-        	}
-        	variants.push(data);
+            var sizeAndPrice = $(this).text().split(" /")[1];
+            var data = {
+                id: $(this).attr('value'),
+                style: $(this).text().split(" /")[0],
+                size: sizeAndPrice.split(" ")[1]
+            }
+            variants.push(data);
         });
 
         //huf.log('info', variants)
         var firstItemStyle = variants[0].style;
 
-		function isSameStyle(el, index, arr) {
-		    if (index === 0){
-		        return true;
-		    }
-		    else {
-		        return (el.style === arr[index - 1].style);
-		    }
-		}
+        function isSameStyle(el, index, arr) {
+            if (index === 0) {
+                return true;
+            } else {
+                return (el.style === arr[index - 1].style);
+            }
+        }
 
         var isEveryStyleTheSame = variants.every(isSameStyle);
 
         if (isEveryStyleTheSame) {
-          huf.log('warning', `Every item variant is the same, your item will be checked out in ${variants[0].style}`)
-        	var itemToBuy = _.where(variants, {style: variants[0].style, size: config.size});
-          huf.log('info', `Checkout out in ${variants[0].style} in size ${config.size} - ${itemToBuy[0].id}`)
-        	return getSessionID(response.link, itemToBuy[0].id, config);
+            huf.log('warning', `Every item variant is the same, your item will be checked out in ${variants[0].style}`)
+            var itemToBuy = _.where(variants, {
+                style: variants[0].style,
+                size: config.size
+            });
+            huf.log('info', `Checkout out in ${variants[0].style} in size ${config.size} - ${itemToBuy[0].id}`)
+            return getSessionID(response.link, itemToBuy[0].id, config);
         } else {
-        	var itemToBuy = _.where(variants, {size: config.size});
-        	if (itemToBuy.indexOf(config.color) > -1) {
+            var itemToBuy = _.where(variants, {
+                size: config.size
+            });
+            if (itemToBuy.indexOf(config.color) > -1) {
                 return getSessionID(response.link, itemToBuy[0].id, config);
             } else {
-              return huf.log('error', 'Error occured while trying to find your item using the keywords provided.')
+                return huf.log('error', 'Error occured while trying to find your item using the keywords provided.')
             }
         }
 
@@ -270,6 +295,7 @@ function input(id, checkoutID, auth_token, config, storeID) {
             var $ = cheerio.load(body);
         }
 
+        huf.log('info', 'Looking for shipping options, please wait...')
         return ship(id, checkoutID, storeID, $('input[name=authenticity_token]').attr('value'), config);
 
     });
@@ -317,7 +343,7 @@ function ship(id, checkoutID, storeID, auth_token, config) {
             'checkout[shipping_address][country]': config.billingInfo.country,
             'checkout[shipping_address][province]': config.billingInfo.stateFull,
             'checkout[shipping_address][zip]': config.billingInfo.zipCode,
-            'checkout[shipping_address][phone]': config.billingInfo.phoneNumber,
+            'checkout[shipping_address][phone]': config.billingInfo.phoneNumberFormatted,
             'checkout[remember_me]': '0',
             'checkout[client_details][browser_width]': '979',
             'checkout[client_details][browser_height]': '631',
@@ -331,24 +357,22 @@ function ship(id, checkoutID, storeID, auth_token, config) {
         } else {
             var $ = cheerio.load(body);
             // if cheerio cant find the first shipping choice retry again
-            huf.log('info', 'Looking for shipping options, please wait...')
             var option_1_radio = $('.input-radio').attr('value');
             if ($('.input-radio').eq(1).attr('value') === undefined) {
                 return ship(id, checkoutID, storeID, auth_token, config);
             } else {
-            	// shipping options are static after numerous requests
+                // shipping options are static after numerous requests
                 var option_1_radio_dec_val = $('.input-radio').eq(0).attr('value');
                 var auth = $('input[name=authenticity_token]').attr('value');
                 huf.log('success', 'Cheapest Shipping Option Value: ' + option_1_radio_dec_val)
-                return submitShippingChoice(storeID, checkoutID, $('input[name=authenticity_token]').attr('value'), option_1_radio_dec_val);
+                return submitShippingChoice(storeID, checkoutID, $('input[name=authenticity_token]').attr('value'), option_1_radio_dec_val, config);
             }
         }
     });
 }
 
-function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
-	// get to card page
-
+function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID, config) {
+    // get to card page
     request({
         url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
         followAllRedirects: true,
@@ -358,7 +382,7 @@ function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.8',
-            'Referer': `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}?previous_step=contact_information&step=shipping_method`,
+            'Referer': `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
         },
         formData: {
@@ -366,9 +390,6 @@ function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
             '_method': 'patch',
             'authenticity_token': auth_token,
             'button': '',
-            'checkout[client_details][browser_width]': '979',
-            'checkout[client_details][browser_height]': '631',
-            'checkout[client_details][javascript_enabled]': '1',
             'previous_step': 'shipping_method',
             'step': 'payment_method',
             'checkout[shipping_rate][id]': shippingRateID
@@ -376,13 +397,92 @@ function submitShippingChoice(storeID, checkoutID, auth_token, shippingRateID) {
     }, function(err, res, body) {
 
         if (err || body === undefined) {
-            return huf.log('error', 'Error occured while trying to add item to your cart.')
+            return huf.log('error', 'Error occured while trying to pay for your item.')
         } else {
             var $ = cheerio.load(body);
         }
-
-        //console.log(body);
+        huf.log('success', 'Shipping option has been picked.')
+        var auth_token = $('input[name=authenticity_token]').attr('value')
+        var payment_gateway = $('input[name="checkout[payment_gateway]"]').eq(0).attr('value')
+        var checkout_total_price = $('checkout_total_price').attr('value')
+        return sendCCInfo(auth_token, storeID, checkoutID, config, payment_gateway, checkout_total_price)
 
     });
 
+}
+
+function sendCCInfo(auth_token, storeID, checkoutID, config, payment_gateway, checkout_total_price) {
+    huf.log('success', 'Sending your CC information to Shopify\'s services...')
+    request({
+        url: 'https://elb.deposit.shopifycs.com/sessions',
+        followAllRedirects: true,
+        method: 'post',
+        headers: {
+            'accept': 'application/json',
+            'Origin': 'https://checkout.shopifycs.com',
+            'Accept-Language': 'en-US,en;q=0.8',
+            'Host': 'elb.deposit.shopifycs.com',
+            'content-type': 'application/json',
+            'Referer': `https://checkout.shopifycs.com/number?identifier=${checkoutID}&location=https%3A%2F%2Fcheckout.shopify.com%2F${storeID}%2Fcheckouts%2F${checkoutID}%3Fprevious_step%3Dshipping_method%26step%3Dpayment_method`,
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+        },
+        form: {
+                'credit_card': {
+                    'number': config.cardInfo.number,
+                    'name': config.cardInfo.nameOnCard,
+                    'month': config.cardInfo.month,
+                    'year': config.cardInfo.year,
+                    'verification_value': config.cardInfo.cvv,
+                }
+        }
+    }, function(err, res, body) {
+
+        if (err || body === undefined) {
+            return huf.log('error', 'Error occured while trying to verify your card with Shopfiy.')
+        } else {
+            huf.log('success', 'Card Information verified by Shopify!')
+            var cc_verify_id = JSON.parse(body).id
+            return checkoutCardFinal(auth_token, config, storeID, checkoutID, cc_verify_id, payment_gateway, checkout_total_price)
+        }
+    });
+}
+
+function checkoutCardFinal(auth_token, config, storeID, checkoutID, cc_verify_id, payment_gateway, checkout_total_price) {
+  request({
+      url: `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
+      followAllRedirects: true,
+      method: 'post',
+      headers: {
+          'Origin': 'https://checkout.shopify.com',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.8',
+          'Referer': `https://checkout.shopify.com/${storeID}/checkouts/${checkoutID}`,
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+      },
+      formData: {
+        '_method': 'patch',
+        'authenticity_token': auth_token,
+        'checkout[buyer_accepts_marketing]': '1', // newsletter
+        'checkout[client_details][browser_height]': '979',
+        'checkout[client_details][browser_width]': '631',
+        'checkout[client_details][javascript_enabled]': '1',
+        'checkout[credit_card][vault]': 'false',
+        'checkout[different_billing_address]': 'false',
+        'checkout[payment_gateway]': payment_gateway,
+        'checkout[total_price]': checkout_total_price,
+        'complete': '1',
+        'previous_step': 'payment_method',
+        's': cc_verify_id,
+        'step': '',
+        'utf8': '✓'
+      }
+  }, function(err, res, body) {
+
+      if (err || body === undefined) {
+          return huf.log('error', 'Error occured while trying to verify your card with Shopfiy.')
+      } else {
+          huf.log('success', 'Payment Successful!')
+      }
+  });
 }
