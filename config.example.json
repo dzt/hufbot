@@ -1,58 +1,66 @@
-[
-   {
-      "keywords":"ACORN",
-      "page":"http://store.hufworldwide.com/collections/footwear",
-      "size":"13",
-      "color":"Black",
-      "autoRetryOnCrash":true,
-      "cardInfo":{
-         "number":"4916 8068 7213 6192",
-         "nameOnCard":"Johnny Appleseed",
-         "month":11,
-         "year":2018,
-         "cvv":"705"
-      },
-      "billingInfo":{
-         "firstName":"Johnny",
-         "lastName":"Appleseed",
-         "company":null,
-         "address":"4384 Clement Street",
-         "aptNumber":null,
-         "city":"Atlanta",
-         "country":"United States",
-         "state":"GA",
-         "stateFull":"Georgia",
-         "zipCode":"30303",
-         "phoneNumber":"4044892804",
-				 "phoneNumberFormatted": "(404) 489-2804"
-      }
-   },
-   {
-      "keywords":"HUF SLIDES // WHITE",
-      "page":"http://store.hufworldwide.com/collections/footwear",
-      "size":"12",
-      "color":"White",
-      "autoRetryOnCrash":true,
-      "cardInfo":{
-        "number":"4916 8068 7213 6192",
-        "nameOnCard":"Johnny Appleseed",
-        "month":11,
-        "year":2018,
-        "cvv":"705"
-      },
-      "billingInfo":{
-         "firstName":"Bobby",
-         "lastName":"Bill",
-         "company":null,
-         "address":"4384 Clement Street",
-         "aptNumber":null,
-         "city":"Atlanta",
-         "country":"United States",
-         "state":"GA",
-         "stateFull":"Georgia",
-         "zipCode":"30303",
-         "phoneNumber":"4044892804",
-				 "phoneNumberFormatted": "(404) 489-2804"
-      }
-   }
-]
+{
+  "tasks": [
+     {
+        "keywords":"ACORN",
+        "page":"http://store.hufworldwide.com/collections/footwear",
+        "size":"13",
+        "color":"Black",
+        "autoRetryOnCrash":true,
+        "cardInfo":{
+           "number":"4916 8068 7213 6192",
+           "nameOnCard":"Johnny Appleseed",
+           "month":11,
+           "year":2018,
+           "cvv":"705"
+        },
+        "billingInfo":{
+           "firstName":"Johnny",
+           "lastName":"Appleseed",
+           "company":null,
+           "address":"4384 Clement Street",
+           "aptNumber":null,
+           "city":"Atlanta",
+           "country":"United States",
+           "state":"GA",
+           "stateFull":"Georgia",
+           "zipCode":"30303",
+           "phoneNumber":"4044892804",
+  				 "phoneNumberFormatted": "(404) 489-2804"
+        }
+     },
+     {
+        "keywords":"HUF SLIDES // WHITE",
+        "page":"http://store.hufworldwide.com/collections/footwear",
+        "size":"12",
+        "color":"White",
+        "autoRetryOnCrash":true,
+        "cardInfo":{
+          "number":"4916 8068 7213 6192",
+          "nameOnCard":"Johnny Appleseed",
+          "month":11,
+          "year":2018,
+          "cvv":"705"
+        },
+        "billingInfo":{
+           "firstName":"Bobby",
+           "lastName":"Bill",
+           "company":null,
+           "address":"4384 Clement Street",
+           "aptNumber":null,
+           "city":"Atlanta",
+           "country":"United States",
+           "state":"GA",
+           "stateFull":"Georgia",
+           "zipCode":"30303",
+           "phoneNumber":"4044892804",
+  				 "phoneNumberFormatted": "(404) 489-2804"
+        }
+     }
+  ],
+  "proxy": {
+    "active": false,
+    "host": "",
+    "username": "",
+    "password": ""
+  }
+}

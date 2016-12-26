@@ -1,11 +1,26 @@
-const request = require('request').defaults({
-    timeout: 30000
-})
 const cheerio = require('cheerio')
 const colors = require('colors')
 var api = {};
 
-api.seekForItem = function(link, productKeywords, callback) {
+api.seekForItem = function(configuration, link, productKeywords, callback) {
+    if (configuration.proxy.active) {
+      if (configuration.proxy.username == null || configuration.proxy.username == "" && configuration.proxy.password == null || configuration.proxy.password == "") {
+          // no auth
+          var proxyUrl = configuration.proxy.host
+      } else {
+          // auth
+          var proxyUrl = "http://" + user + ":" + password + "@" + host + ":" + port;
+      }
+
+      var request = require('request').defaults({
+          timeout: 30000,
+          proxy: proxyUrl
+      });
+    } else {
+      var request = require('request').defaults({
+          timeout: 30000
+      });
+    }
 
     request(link, function(err, resp, html, rrr, body) {
 
@@ -58,11 +73,6 @@ api.seekForItem = function(link, productKeywords, callback) {
         }
 
     });
-
-}
-
-api.addToCart = function(link, size, style, cc, callback) {
-
 
 }
 

@@ -1,10 +1,6 @@
 var huf = require('./index');
-var j = require('request').jar();
+var j;
 const _ = require('underscore');
-const request = require('request').defaults({
-    timeout: 30000,
-    jar: j
-});
 const cheerio = require('cheerio');
 const async = require('async');
 var configuration
@@ -12,6 +8,26 @@ try {
     configuration = require('./config.json');
 } catch (e) {
     return huf.log(null, 'error', 'Missing, config.json file please create your config file before using hufbot.')
+}
+var j = require('request').jar();
+if (configuration.proxy.active) {
+  if (configuration.proxy.username == null || configuration.proxy.username == "" && configuration.proxy.password == null || configuration.proxy.password == "") {
+      // no auth
+      var proxyUrl = configuration.proxy.host
+  } else {
+      // auth
+      var proxyUrl = "http://" + user + ":" + password + "@" + host + ":" + port;
+  }
+  var request = require('request').defaults({
+      timeout: 30000,
+      jar: j,
+      proxy: proxyUrl
+  });
+} else {
+  var request = require('request').defaults({
+      timeout: 30000,
+      jar: j
+  });
 }
 
 var stack = []
@@ -21,7 +37,7 @@ function seek(config, i, callback) {
   huf.log(i, 'info', 'Seeking for item...')
   retry(config)
   function retry(config) {
-    huf.seekForItem(config.page, config.keywords, (response, err) => {
+    huf.seekForItem(configuration, config.page, config.keywords, (response, err) => {
         // Handle Site Crashes
         if (err || response == null) {
             if (config.autoRetryOnCrash == true) {
