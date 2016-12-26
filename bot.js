@@ -8,7 +8,6 @@ const request = require('request').defaults({
 const cheerio = require('cheerio');
 const async = require('async');
 var configuration
-
 try {
     configuration = require('./config.json');
 } catch (e) {
