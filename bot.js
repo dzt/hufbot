@@ -17,44 +17,27 @@ try {
 
 var stack = []
 
-var task1 = function(callback) {
-    //callback(`Task 1 Started`, null)
-    huf.log('info', `Task 1 Started`);
-    huf.log('info', 'Seeking for item...')
-    huf.seekForItem(configuration[0].page, configuration[0].keywords, (response, err) => {
-        // Handle Site Crashes
-        if (err || response == null) {
-            if (configuration[0].autoRetryOnCrash == true) {
-                return task1();
-            } else {
-                return huf.log('error', err);
-            }
-        }
-        return addToCart(configuration[0], response);
-    });
+function seek(config, i, callback) {
+  huf.log('info', `Task ${i} Started`);
+  huf.log('info', 'Seeking for item...')
+  huf.seekForItem(config.page, config.keywords, (response, err) => {
+      // Handle Site Crashes
+      if (err || response == null) {
+          if (config.autoRetryOnCrash == true) {
+              return seek(config, i, callback);
+          } else {
+              return huf.log('error', err);
+          }
+      }
+      return addToCart(config, response);
+  });
 }
 
-var task2 = function(callback) {
-    //callback(`Task 2 Started`, null)
-    huf.log('info', `Task 2 Started`);
-    huf.log('info', 'Seeking for item...')
-    huf.seekForItem(configuration[1].page, configuration[1].keywords, (response, err) => {
-        // Handle Site Crashes
-        if (err || response == null) {
-            if (configuration[1].autoRetryOnCrash == true) {
-                return task2();
-            } else {
-                return huf.log('error', err);
-            }
-        }
-        return addToCart(configuration[1], response);
-    });
+for (i in configuration) {
+  stack.push(seek(configuration[i], i))
 }
 
-stack.push(task1)
-stack.push(task2)
-
-async.parallel(stack, function(res, err) {});
+async.each(stack, function(res, err) {});
 
 function addToCart(config, response) {
 
@@ -484,5 +467,6 @@ function checkoutCardFinal(auth_token, config, storeID, checkoutID, cc_verify_id
       } else {
           huf.log('success', 'Payment Successful!')
       }
+
   });
 }
