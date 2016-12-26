@@ -20,17 +20,20 @@ var stack = []
 function seek(config, i, callback) {
   huf.log('info', `Task ${i} Started`);
   huf.log('info', 'Seeking for item...')
-  huf.seekForItem(config.page, config.keywords, (response, err) => {
-      // Handle Site Crashes
-      if (err || response == null) {
-          if (config.autoRetryOnCrash == true) {
-              return seek(config, i, callback);
-          } else {
-              return huf.log('error', err);
-          }
-      }
-      return addToCart(config, response);
-  });
+  retry()
+  function retry() {
+    huf.seekForItem(config.page, config.keywords, (response, err) => {
+        // Handle Site Crashes
+        if (err || response == null) {
+            if (config.autoRetryOnCrash == true) {
+                return retry();
+            } else {
+                return huf.log('error', err);
+            }
+        }
+        return addToCart(config, response);
+    });
+  }
 }
 
 for (i in configuration) {
